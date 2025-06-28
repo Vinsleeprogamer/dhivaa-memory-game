@@ -1,0 +1,259 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Dhivaaa’s Memory Card Game 💜</title>
+  <style>
+    body {
+      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+      margin: 0;
+      background: linear-gradient(to bottom right, #2d0219, #3d003d, #330000);
+      background-image: url('https://i.imgur.com/OAFfGst.jpg'), url('https://i.imgur.com/3lRIvlG.jpg');
+      background-repeat: no-repeat, no-repeat;
+      background-position: left bottom, right top;
+      background-size: 150px, 200px;
+      padding: 20px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+    }
+
+    h1 {
+      color: #ff69b4;
+      text-shadow: 1px 1px 3px #000;
+    }
+
+    .stats {
+      margin-top: 10px;
+      font-size: 18px;
+      color: #fff;
+      display: flex;
+      gap: 20px;
+    }
+
+    .game-grid {
+      display: grid;
+      grid-template-columns: repeat(4, 100px);
+      grid-gap: 15px;
+      margin-top: 20px;
+    }
+
+    .card {
+      width: 100px;
+      height: 100px;
+      background: transparent;
+      border-radius: 12px;
+      position: relative;
+      transform-style: preserve-3d;
+      transition: transform 0.5s;
+      cursor: pointer;
+    }
+
+    .card.flipped {
+      transform: rotateY(180deg);
+      cursor: default;
+    }
+
+    .card .front, .card .back {
+      position: absolute;
+      width: 100%;
+      height: 100%;
+      border-radius: 12px;
+      backface-visibility: hidden;
+    }
+
+    .card .front {
+      transform: rotateY(180deg);
+      overflow: hidden;
+    }
+
+    .card .front img {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+      border-radius: 12px;
+    }
+
+    .card .back {
+      background-image: url('image_2025-06-29_013040453.png');
+      background-size: cover;
+      background-position: center;
+      background-color: #d6336c;
+    }
+
+    #message {
+      margin-top: 20px;
+      font-size: 20px;
+      color: #fff;
+      font-weight: bold;
+      text-align: center;
+    }
+
+    button {
+      margin-top: 20px;
+      background: #ff69b4;
+      border: none;
+      color: white;
+      padding: 10px 18px;
+      border-radius: 8px;
+      cursor: pointer;
+      font-size: 16px;
+    }
+
+    button:hover {
+      background: #c9427a;
+    }
+
+    @media (max-width: 500px) {
+      .game-grid {
+        grid-template-columns: repeat(3, 80px);
+        grid-gap: 10px;
+      }
+      .card {
+        width: 80px;
+        height: 80px;
+      }
+    }
+  </style>
+</head>
+<body>
+  <h1>Dhivaaa’s Memory Card Game 💜</h1>
+  <div class="stats">
+    <div>Score: <span id="score">0</span></div>
+    <div>Time: <span id="timer">0</span> sec</div>
+  </div>
+  <div class="game-grid" id="gameGrid"></div>
+  <div id="message"></div>
+  <button id="restartBtn">Restart Game</button>
+
+  <!-- Sound Effects -->
+  <audio id="flipSound" src="https://www.soundjay.com/buttons/sounds/button-16.mp3"></audio>
+  <audio id="matchSound" src="https://www.soundjay.com/buttons/sounds/button-3.mp3"></audio>
+
+  <!-- Confetti -->
+  <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.6.0/dist/confetti.browser.min.js"></script>
+
+  <script>
+    const images = [
+      'https://i.imgur.com/O7kF6zQ.jpg',
+      'https://i.imgur.com/mX1x7QV.jpg',
+      'https://i.imgur.com/1vp0h7p.jpg',
+      'https://i.imgur.com/Q9LfuUg.jpg',
+      'https://i.imgur.com/7Jr5GgJ.jpg',
+      'https://i.imgur.com/FF5OYDq.jpg',
+      'https://i.imgur.com/Lp3GLcL.jpg',
+      'https://i.imgur.com/ZXBTa1z.jpg'
+    ];
+
+    const cardsArray = [...images, ...images];
+    let firstCard = null;
+    let secondCard = null;
+    let lockBoard = false;
+    let matches = 0;
+    let score = 0;
+    let timer = 0;
+    let timerInterval = null;
+
+    const gameGrid = document.getElementById('gameGrid');
+    const message = document.getElementById('message');
+    const restartBtn = document.getElementById('restartBtn');
+    const scoreDisplay = document.getElementById('score');
+    const timerDisplay = document.getElementById('timer');
+
+    const flipSound = document.getElementById('flipSound');
+    const matchSound = document.getElementById('matchSound');
+
+    function shuffle(array) {
+      return array.sort(() => Math.random() - 0.5);
+    }
+
+    function startTimer() {
+      timer = 0;
+      timerDisplay.textContent = timer;
+      if (timerInterval) clearInterval(timerInterval);
+      timerInterval = setInterval(() => {
+        timer++;
+        timerDisplay.textContent = timer;
+      }, 1000);
+    }
+
+    function createBoard() {
+      gameGrid.innerHTML = '';
+      matches = 0;
+      score = 0;
+      scoreDisplay.textContent = score;
+      message.textContent = '';
+      firstCard = null;
+      secondCard = null;
+      lockBoard = false;
+
+      const shuffledCards = shuffle(cardsArray);
+      shuffledCards.forEach(imageURL => {
+        const card = document.createElement('div');
+        card.classList.add('card');
+        card.dataset.image = imageURL;
+
+        card.innerHTML = `
+          <div class="front"><img src="${imageURL}" alt="Memory Image"></div>
+          <div class="back"></div>
+        `;
+
+        card.addEventListener('click', flipCard);
+        gameGrid.appendChild(card);
+      });
+
+      startTimer();
+    }
+
+    function flipCard() {
+      if (lockBoard || this.classList.contains('flipped')) return;
+      flipSound.play();
+      this.classList.add('flipped');
+
+      if (!firstCard) {
+        firstCard = this;
+        return;
+      }
+
+      secondCard = this;
+      checkForMatch();
+    }
+
+    function checkForMatch() {
+      const isMatch = firstCard.dataset.image === secondCard.dataset.image;
+
+      if (isMatch) {
+        matchSound.play();
+        matches++;
+        score += 10;
+        scoreDisplay.textContent = score;
+        resetTurn();
+
+        if (matches === cardsArray.length / 2) {
+          clearInterval(timerInterval);
+          message.innerHTML = `🎉 You matched all pairs, Dhivaaa! 🎉<br>Time: ${timer} seconds<br>Score: ${score}`;
+          confetti({ particleCount: 120, spread: 80, origin: { y: 0.6 } });
+        }
+      } else {
+        score = Math.max(0, score - 2);
+        scoreDisplay.textContent = score;
+        lockBoard = true;
+        setTimeout(() => {
+          firstCard.classList.remove('flipped');
+          secondCard.classList.remove('flipped');
+          resetTurn();
+        }, 1000);
+      }
+    }
+
+    function resetTurn() {
+      [firstCard, secondCard] = [null, null];
+      lockBoard = false;
+    }
+
+    restartBtn.addEventListener('click', createBoard);
+    createBoard();
+  </script>
+</body>
+</html>
